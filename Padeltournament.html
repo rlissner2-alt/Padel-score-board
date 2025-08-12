@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Padel Tournament Scoreboard</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+  h1, h2 { text-align: center; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  input[type="number"] { width: 50px; }
+  button { padding: 8px 16px; margin: 10px 0; }
+  .winner { font-weight: bold; color: green; font-size: 1.2em; }
+  #description { background: #f0f0f0; padding: 12px; margin-bottom: 20px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Padel Tournament Scoreboard</h1>
+
+<div id="description">
+  <p><strong>Note:</strong> The tournament consists of 7 rounds, each lasting 12 minutes.</p>
+  <p>Points in each game follow the standard padel/tennis scoring: 0, 15, 30, 40 to win a game.</p>
+  <p>For this scoreboard, please enter the <em>number of games won</em> by each team in each match.</p>
+  <p>The system will count matches won based on games and display standings and total games won by each team.</p>
+</div>
+
+<div id="tournament">
+  <h2>Match Schedule & Scores</h2>
+  <table id="matches-table">
+    <thead>
+      <tr>
+        <th>Round</th>
+        <th>Court</th>
+        <th>Team A</th>
+        <th>Games Won A</th>
+        <th>Team B</th>
+        <th>Games Won B</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Standings</h2>
+  <table id="standings-table">
+    <thead>
+      <tr>
+        <th>Team</th>
+        <th>Matches Played</th>
+        <th>Matches Won</th>
+        <th>Matches Lost</th>
+        <th>Total Games Won</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="winner" class="winner"></div>
+</div>
+
+<script>
+  // Teams fixed as requested
+  const teams = [
+    'Roel & Gabriela',
+    'Janari & David',
+    'Baltus & Robin',
+    'Vicky & Alexandra',
+    'Nika & Jasper',
+    'Linda & Matthijs',
+    'Johanna & Arbaaz'
+  ];
+
+  // Matches with courts renamed from A/B to 2/3
+  const matches = [
+    { round: 1, court: '2', teamA: 3, teamB: 6 },
+    { round: 1, court: '3', teamA: 4, teamB: 5 },
+    { round: 2, court: '2', teamA: 1, teamB: 7 },
+    { round: 2, court: '3', teamA: 3, teamB: 4 },
+    { round: 3, court: '2', teamA: 7, teamB: 5 },
+    { round: 3, court: '3', teamA: 2, teamB: 3 },
+    { round: 4, court: '2', teamA: 1, teamB: 5 },
+    { round: 4, court: '3', teamA: 7, teamB: 3 },
+    { round: 5, court: '2', teamA: 1, teamB: 4 },
+    { round: 5, court: '3', teamA: 6, teamB: 2 },
+    { round: 6, court: '2', teamA: 4, teamB: 2 },
+    { round: 6, court: '3', teamA: 6, teamB: 7 },
+    { round: 7, court: '2', teamA: 1, teamB: 2 },
+    { round: 7, court: '3', teamA: 5, teamB: 6 },
+  ];
+
+  let scores = {};
+
+  function renderMatches() {
+    const tbody = document.querySelector('#matches-table tbody');
+    tbody.innerHTML = '';
+    matches.forEach((m, i) => {
+      const tr = document.createElement('tr');
+
+      const tdRound = document.createElement('td');
+      tdRound.textContent = m.round;
+      tr.appendChild(tdRound);
+
+      const tdCourt = document.createElement('td');
+      tdCourt.textContent = m.court;
+      tr.appendChild(tdCourt);
+
+      const tdTeamA = document.createElement('td');
+      tdTeamA.textContent = teams[m.teamA - 1];
+      tr.appendChild(tdTeamA);
+
+      const tdGamesA = document.createElement('td');
+      const inputA = document.createElement('input');
+      inputA.type = 'number';
+      inputA.min = 0;
+      inputA.value = '';
+      inputA.dataset.match = i;
+      inputA.dataset.side = 'A';
+      inputA.addEventListener('input', onScoreChange);
+      tdGamesA.appendChild(inputA);
+      tr.appendChild(tdGamesA);
+
+      const tdTeamB = document.createElement('td');
+      tdTeamB.textContent = teams[m.teamB - 1];
+      tr.appendChild(tdTeamB);
+
+      const tdGamesB = document.createElement('td');
+      const inputB = document.createElement('input');
+      inputB.type = 'number';
+      inputB.min = 0;
+      inputB.value = '';
+      inputB.dataset.match = i;
+      inputB.dataset.side = 'B';
+      inputB.addEventListener('input', onScoreChange);
+      tdGamesB.appendChild(inputB);
+      tr.appendChild(tdGamesB);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function onScoreChange(e) {
+    const matchIndex = e.target.dataset.match;
+    const side = e.target.dataset.side;
+    const val = parseInt(e.target.value, 10);
+
+    if (!scores[matchIndex]) scores[matchIndex] = { gamesA: null, gamesB: null };
+
+    if (side === 'A') {
+      scores[matchIndex].gamesA = isNaN(val) ? null : val;
+    } else {
+      scores[matchIndex].gamesB = isNaN(val) ? null : val;
+    }
+    renderStandings();
+  }
+
+  function renderStandings() {
+    let stats = teams.map(t => ({ team: t, played: 0, wins: 0, losses: 0, gamesWon: 0 }));
+
+    matches.forEach((m, i) => {
+      const sc = scores[i];
+      if (sc && sc.gamesA !== null && sc.gamesB !== null) {
+        stats[m.teamA - 1].played++;
+        stats[m.teamB - 1].played++;
+
+        stats[m.teamA - 1].gamesWon += sc.gamesA;
+        stats[m.teamB - 1].gamesWon += sc.gamesB;
+
+        if (sc.gamesA > sc.gamesB) {
+          stats[m.teamA - 1].wins++;
+          stats[m.teamB - 1].losses++;
+        } else if (sc.gamesB > sc.gamesA) {
+          stats[m.teamB - 1].wins++;
+          stats[m.teamA - 1].losses++;
+        }
+      }
+    });
+
+    stats.sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.gamesWon - a.gamesWon);
+
+    const tbody = document.querySelector('#standings-table tbody');
+    tbody.innerHTML = '';
+    stats.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.team}</td>
+        <td>${s.played}</td>
+        <td>${s.wins}</td>
+        <td>${s.losses}</td>
+        <td>${s.gamesWon}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const allDone = matches.every((_, i) => scores[i] && scores[i].gamesA !== null && scores[i].gamesB !== null);
+    if (allDone) {
+      const winner = stats[0];
+      document.getElementById('winner').textContent = `🏆 Winner: ${winner.team} 🏆`;
+    } else {
+      document.getElementById('winner').textContent = '';
+    }
+  }
+
+  renderMatches();
+  renderStandings();
+</script>
+
+</body>
+</html>
